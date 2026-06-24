@@ -322,20 +322,30 @@ function App(){
   }
 
   function EventForm(){
-    var [dn,sDn]=useState(""); var [ds,sDs]=useState(activeSection);
+    var [selMemberId,setSelMemberId]=useState(""); var [ds,sDs]=useState(activeSection);
     var [dd,sDd]=useState(new Date().toISOString().split("T")[0]); var [am,sAm]=useState(defaultAmount);
+    var secMems=members.filter(function(m){return m.section===ds;});
+    var selMember=members.find(function(m){return m.id===selMemberId;});
+    var displayName=selMember?(selMember.name+" "+t.sonOf+" "+selMember.sonOf):"";
     return(<div style={S.card}>
       <h3 style={{color:"#4ade80",margin:"0 0 14px",fontSize:16}}>{t.newEvent}</h3>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        <input style={S.inp} placeholder={t.deceasedName} value={dn} onChange={function(e){sDn(e.target.value);}}/>
-        <select style={{...S.inp,cursor:"pointer"}} value={ds} onChange={function(e){sDs(e.target.value);}}>
+        <div><label style={{fontSize:12,color:"#94a3b8",display:"block",marginBottom:4}}>{lang==="ur"?"سیکشن":"Section"}</label>
+        <select style={{...S.inp,cursor:"pointer"}} value={ds} onChange={function(e){sDs(e.target.value);setSelMemberId("");}}>
           {SECTIONS.map(function(s){return <option key={s.id} value={s.id}>{lang==="ur"?s.ur:s.en}</option>;})}
+        </select></div>
+        <div><label style={{fontSize:12,color:"#94a3b8",display:"block",marginBottom:4}}>{t.deceasedName}</label>
+        <select style={{...S.inp,cursor:"pointer"}} value={selMemberId} onChange={function(e){setSelMemberId(e.target.value);}}>
+          <option value="">{lang==="ur"?"— ممبر منتخب کریں —":"— Select Member —"}</option>
+          {secMems.map(function(m){return <option key={m.id} value={m.id}>{m.name} — {t.sonOf} {m.sonOf} — {m.location}</option>;})}
         </select>
+        {secMems.length===0&&<div style={{fontSize:11,color:"#f87171",marginTop:4}}>{lang==="ur"?"اس سیکشن میں کوئی ممبر نہیں۔ پہلے ممبر شامل کریں۔":"No members in this section. Add members first."}</div>}
+        </div>
         <input style={S.inp} type="date" value={dd} onChange={function(e){sDd(e.target.value);}}/>
         <div><label style={{fontSize:12,color:"#94a3b8"}}>{t.contribution}</label>
         <input style={S.inp} type="number" value={am} onChange={function(e){sAm(Number(e.target.value));}}/></div>
         <div style={{display:"flex",gap:8}}>
-          <button style={S.btn("primary")} onClick={function(){if(dn.trim())addDeathEvent({deceasedName:dn.trim(),section:ds,date:dd,amount:am});}}>{t.save}</button>
+          <button style={S.btn("primary")} onClick={function(){if(selMemberId&&selMember)addDeathEvent({deceasedName:selMember.name+" "+t.sonOf+" "+selMember.sonOf,section:ds,date:dd,amount:am});}}>{t.save}</button>
           <button style={S.btn()} onClick={function(){setShowEventForm(false);}}>{t.cancel}</button>
         </div>
       </div>
@@ -379,14 +389,17 @@ function App(){
   }
 
   function EventsTab(){
+    var [expandedEvt,setExpandedEvt]=useState(null);
     return(<div>
       <div style={{display:"flex",justifyContent:"flex-end",margin:"10px 0"}}><button style={S.btn("primary")} onClick={function(){setShowEventForm(true);}}>+ {t.newEvent}</button></div>
       {showEventForm&&<EventForm/>}
       {events.length===0?<div style={{...S.card,textAlign:"center",color:"#64748b",padding:32}}>{t.noEvents}</div>
       :events.slice().reverse().map(function(evt){
         var stats=getEventStats(evt.id); var sec=SECTIONS.find(function(s){return s.id===evt.section;});
+        var isExpanded=expandedEvt===evt.id;
+        var evtPayments=payments.filter(function(p){return p.eventId===evt.id;});
         return(<div key={evt.id} style={S.card}>
-          <div style={{cursor:"pointer"}} onClick={function(){setSelectedEvent(evt);}}>
+          <div style={{cursor:"pointer"}} onClick={function(){setExpandedEvt(isExpanded?null:evt.id);}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
               <div>
                 <div style={{fontSize:16,fontWeight:700,color:"#e2e8f0"}}>{evt.deceasedName}</div>
@@ -402,14 +415,49 @@ function App(){
             <div style={{marginTop:10,background:"rgba(255,255,255,0.06)",borderRadius:6,height:6,overflow:"hidden"}}>
               <div style={{height:"100%",background:"#4ade80",borderRadius:6,width:(stats.total?(stats.paidCount/stats.total)*100:0)+"%"}}/>
             </div>
+            <div style={{textAlign:"center",marginTop:6,fontSize:11,color:"#64748b"}}>{isExpanded?"▲ "+t.close:"▼ "+(lang==="ur"?"ممبران کی ادائیگی دیکھیں":"View Member Payments")}</div>
           </div>
-          <div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap"}}>
+          {/* WhatsApp buttons */}
+          <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
             <button style={S.wa} onClick={function(e){e.stopPropagation();openWhatsApp("",buildAnnouncement(evt));}}>📢 {t.whatsappShare}</button>
             <button style={{...S.wa,background:"#128C7E"}} onClick={function(e){e.stopPropagation();
               var uL=[];payments.filter(function(p){return p.eventId===evt.id&&!p.paid;}).forEach(function(p){var m=members.find(function(mm){return mm.id===p.memberId;});if(m)uL.push(m.name);});
               openWhatsApp("",(lang==="ur"?"غیر ادا شدہ — "+evt.deceasedName+":\n\n"+uL.join("\n")+"\n\nبراہ کرم "+evt.amount+" AED ادا کریں":"Unpaid — "+evt.deceasedName+":\n\n"+uL.join("\n")+"\n\nPlease pay "+evt.amount+" AED"));
             }}>🔔 {t.whatsappRemind}</button>
           </div>
+          {/* Inline Payment List */}
+          {isExpanded&&<div style={{marginTop:12}}>
+            {SECTIONS.map(function(sec2){
+              var secMems=members.filter(function(m){return m.section===sec2.id;});
+              var secPayments=evtPayments.filter(function(p){var m=members.find(function(mm){return mm.id===p.memberId;});return m&&m.section===sec2.id;}).map(function(p){var m=members.find(function(mm){return mm.id===p.memberId;});return{...p,member:m};});
+              if(secPayments.length===0) return null;
+              var paidC=secPayments.filter(function(p){return p.paid;}).length;
+              var secL=members.find(function(m){return m.section===sec2.id&&m.isLeader;});
+              return(<div key={sec2.id} style={{marginBottom:12,background:"rgba(255,255,255,0.02)",borderRadius:10,padding:10,border:"1px solid rgba(255,255,255,0.05)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:4}}>
+                  <span style={{fontSize:13,fontWeight:700,color:"#fbbf24"}}>{lang==="ur"?sec2.ur:sec2.en} ({paidC}/{secPayments.length})</span>
+                  <div style={{display:"flex",gap:4}}>
+                    {secPayments.some(function(p){return!p.paid;})&&<button style={{...S.btn("primary"),padding:"3px 8px",fontSize:10}} onClick={function(e){e.stopPropagation();markSectionAllPaid(evt.id,sec2.id);}}>✓ {t.markAllPaid}</button>}
+                    {secL&&secL.phone&&<button style={{...S.wa,padding:"3px 8px",fontSize:10}} onClick={function(e){e.stopPropagation();openWhatsApp(secL.phone,buildLeaderMsg(evt,sec2.id));}}>👑</button>}
+                  </div>
+                </div>
+                {secPayments.map(function(p){
+                  return(<div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 8px",borderBottom:"1px solid rgba(255,255,255,0.04)",gap:6}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,color:"#e2e8f0",fontWeight:500}}>{p.member.name}</div>
+                      <div style={{fontSize:10,color:"#64748b"}}>{t.sonOf} {p.member.sonOf}{p.paidDate?" • "+p.paidDate:""}</div>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:4}}>
+                      {p.approved?<span style={S.bdg("approved")}>✓</span>:p.paid?<span style={S.bdg("paid")}>{t.paid}</span>:<span style={S.bdg("unpaid")}>{t.unpaid}</span>}
+                      <button style={{...S.btn(p.paid?"danger":"primary"),padding:"3px 8px",fontSize:10}} onClick={function(e){e.stopPropagation();togglePayment(p.id);}}>{p.paid?"✕":"✓"}</button>
+                      {p.paid&&!p.approved&&<button style={{...S.btn(),padding:"3px 8px",fontSize:10,background:"rgba(59,130,246,0.2)",color:"#60a5fa"}} onClick={function(e){e.stopPropagation();approvePayment(p.id);}}>✓{t.approve}</button>}
+                      {!p.paid&&p.member.phone&&<button style={{...S.wa,padding:"3px 6px",fontSize:10}} onClick={function(e){e.stopPropagation();openWhatsApp(p.member.phone,buildReminder(evt,p.member.name));}}>📱</button>}
+                    </div>
+                  </div>);
+                })}
+              </div>);
+            })}
+          </div>}
         </div>);
       })}
     </div>);
