@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ali Khel Murda Fund — علی خیل مردہ فنڈ</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕌</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a1628; overflow-x: hidden; }
+  /* Splash */
+  #splash { position:fixed; inset:0; background:#0a1628; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; transition: opacity 0.5s; }
+  #splash.hide { opacity:0; pointer-events:none; }
+  #splash h1 { color:#4ade80; font-size:28px; font-family:'Inter',sans-serif; font-weight:800; }
+  #splash p { color:#94a3b8; font-size:14px; margin-top:8px; }
+  .spinner { width:40px; height:40px; border:3px solid rgba(74,222,128,0.2); border-top-color:#4ade80; border-radius:50%; animation:spin 0.8s linear infinite; margin-bottom:20px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="splash"><div class="spinner"></div><h1>🕌 Ali Khel Murda Fund</h1><p>Loading...</p></div>
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel">
+// =============================================
+// ⚠️ PASTE YOUR GOOGLE APPS SCRIPT URL BELOW ⚠️
+// =============================================
+var API_URL = "https://script.google.com/macros/s/AKfycbxKkv0ufPJVZJfOuZOElkHfLQYh7BXoq2s03MV_CfufIZIaEekSuYXFS4vEFldflHFa/exec";
+// Example: "https://script.google.com/macros/s/AKfycbx.../exec"
+
+var { useState, useEffect, useCallback, useRef } = React;
+
+var SECTIONS = [
+  { id:"shawas", en:"Shawas Khel", ur:"شواس خیل" },
+  { id:"aimal", en:"Aimal Khan Khel", ur:"ایمل خان خیل" },
+  { id:"jasrat", en:"Jasrat Khel", ur:"جسرت خیل" },
+  { id:"tapa", en:"Tapa Panjam", ur:"ٹپہ پنجم" },
+  { id:"sher", en:"Sher Khel", ur:"شیر خیل" },
+];
+
+var T = {
+  en: {
+    title:"Ali Khel Murda Fund", subtitle:"Community Death Benefit Fund",
+    members:"Members", addMember:"Add Member", editMember:"Edit Member",
+    sn:"S/N", name:"Name", sonOf:"S/o (Son of)", location:"Location / Dera",
+    paid:"Paid", unpaid:"Unpaid", paidAmount:"Paid Amount", status:"Status",
+    actions:"Actions", save:"Save", cancel:"Cancel",
+    approve:"Approve", approved:"Approved", leader:"Leader",
+    deathEvents:"Death Events", newEvent:"New Death Event",
+    deceasedName:"Deceased Name", date:"Date", contribution:"Contribution (AED)",
+    perMember:"per member", markPaid:"Mark Paid", markUnpaid:"Mark Unpaid",
+    allMembers:"All Members", settings:"Settings",
+    contributionAmount:"Default Contribution Amount (AED)", saveSettings:"Save Settings",
+    noMembers:"No members yet. Add members to get started.",
+    noEvents:"No death events recorded yet.",
+    confirmDelete:"Are you sure you want to delete?",
+    total:"Total", collected:"Collected", pending:"Pending",
+    search:"Search members...", summary:"Summary",
+    close:"Close", language:"اردو", phone:"Phone", dateOfEntry:"Date of Entry",
+    whatsappNotify:"WhatsApp Notify", whatsappRemind:"Remind Unpaid",
+    whatsappShare:"Share via WhatsApp", paymentDate:"Payment Date",
+    sendToAll:"Notify All", sendToUnpaid:"Remind Unpaid",
+    sendToLeader:"Message Leader", markAllPaid:"Mark All Paid",
+    totalEvents:"Total Events", syncing:"Syncing...", synced:"Synced ✓",
+    syncError:"Sync Error!", offline:"Offline Mode", retry:"Retry Sync",
+    lastSync:"Last sync", setupNeeded:"⚠️ Setup: Paste your Google Apps Script URL in index.html",
+  },
+  ur: {
+    title:"علی خیل مردہ فنڈ", subtitle:"کمیونٹی وفات فنڈ",
+    members:"ممبران", addMember:"ممبر شامل کریں", editMember:"ممبر میں ترمیم",
+    sn:"نمبر", name:"نام", sonOf:"ولد", location:"مقام / ڈیرہ",
+    paid:"ادا شدہ", unpaid:"غیر ادا شدہ", paidAmount:"ادا شدہ رقم", status:"حالت",
+    actions:"عمل", save:"محفوظ کریں", cancel:"منسوخ",
+    approve:"منظور", approved:"منظور شدہ", leader:"سربراہ",
+    deathEvents:"وفات ریکارڈ", newEvent:"نئی وفات درج کریں",
+    deceasedName:"مرحوم کا نام", date:"تاریخ", contribution:"چندہ (AED)",
+    perMember:"فی ممبر", markPaid:"ادا شدہ", markUnpaid:"غیر ادا شدہ",
+    allMembers:"تمام ممبران", settings:"ترتیبات",
+    contributionAmount:"ڈیفالٹ چندہ رقم (AED)", saveSettings:"محفوظ کریں",
+    noMembers:"ابھی کوئی ممبر نہیں۔ ممبر شامل کریں۔",
+    noEvents:"ابھی کوئی وفات ریکارڈ نہیں۔",
+    confirmDelete:"کیا آپ واقعی حذف کرنا چاہتے ہیں؟",
+    total:"کل", collected:"وصول شدہ", pending:"باقی",
+    search:"ممبر تلاش کریں...", summary:"خلاصہ",
+    close:"بند", language:"English", phone:"فون", dateOfEntry:"شمولیت کی تاریخ",
+    whatsappNotify:"واٹس ایپ اطلاع", whatsappRemind:"غیر ادا شدہ یاد دہانی",
+    whatsappShare:"واٹس ایپ شیئر", paymentDate:"ادائیگی تاریخ",
+    sendToAll:"تمام کو اطلاع", sendToUnpaid:"غیر ادا شدہ یاد دہانی",
+    sendToLeader:"سربراہ کو پیغام", markAllPaid:"سب ادا شدہ",
+    totalEvents:"کل وفات", syncing:"مطابقت...", synced:"مطابقت ✓",
+    syncError:"مطابقت خرابی!", offline:"آف لائن موڈ", retry:"دوبارہ کوشش",
+    lastSync:"آخری مطابقت", setupNeeded:"⚠️ سیٹ اپ: اپنا Google Apps Script URL ڈالیں",
+  },
+};
+
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+// API helper
+async function apiCall(action, data, method){
+  if(API_URL.includes("PASTE_YOUR")) return null;
+  try {
+    if(method === "GET"){
+      var r = await fetch(API_URL+"?action="+action, {redirect:"follow"});
+      return await r.json();
+    } else {
+      var r = await fetch(API_URL, {
+        method:"POST", redirect:"follow",
+        headers:{"Content-Type":"text/plain"},
+        body: JSON.stringify({action:action, ...data})
+      });
+      return await r.json();
+    }
+  } catch(e){ console.error("API Error:",e); return null; }
+}
+
+function App(){
+  var [lang, setLang] = useState("en");
+  var [tab, setTab] = useState("members");
+  var [activeSection, setActiveSection] = useState("shawas");
+  var [members, setMembers] = useState([]);
+  var [events, setEvents] = useState([]);
+  var [payments, setPayments] = useState([]);
+  var [defaultAmount, setDefaultAmount] = useState(20);
+  var [showForm, setShowForm] = useState(false);
+  var [editingMember, setEditingMember] = useState(null);
+  var [showEventForm, setShowEventForm] = useState(false);
+  var [selectedEvent, setSelectedEvent] = useState(null);
+  var [search, setSearch] = useState("");
+  var [loaded, setLoaded] = useState(false);
+  var [syncStatus, setSyncStatus] = useState("idle");
+  var [lastSync, setLastSync] = useState(null);
+  var isSetup = !API_URL.includes("PASTE_YOUR");
+
+  var t = T[lang];
+  var isRtl = lang === "ur";
+
+  // Load data from Google Sheets on startup
+  var loadData = useCallback(async function(){
+    // Try local storage first (instant load)
+    try {
+      var local = localStorage.getItem("akh-data");
+      if(local){
+        var d = JSON.parse(local);
+        setMembers(d.members||[]); setEvents(d.events||[]); setPayments(d.payments||[]);
+        setDefaultAmount(d.defaultAmount||20);
+      }
+    } catch(e){}
+    setLoaded(true);
+    // Then sync from Google Sheets
+    if(isSetup){
+      setSyncStatus("syncing");
+      var result = await apiCall("getAll", null, "GET");
+      if(result && !result.error){
+        var m = result.members||[];
+        var e = result.events||[];
+        var p = result.payments||[];
+        var amt = (result.settings && result.settings.defaultAmount) ? Number(result.settings.defaultAmount) : 20;
+        setMembers(m); setEvents(e); setPayments(p); setDefaultAmount(amt);
+        saveLocal(m,e,p,amt);
+        setSyncStatus("synced"); setLastSync(new Date().toLocaleTimeString());
+        setTimeout(function(){ setSyncStatus("idle"); }, 3000);
+      } else {
+        setSyncStatus("error");
+      }
+    }
+    // Hide splash
+    setTimeout(function(){ var s=document.getElementById("splash"); if(s) s.classList.add("hide"); }, 500);
+  },[]);
+
+  useEffect(function(){ loadData(); },[loadData]);
+
+  function saveLocal(m,e,p,amt){
+    try{ localStorage.setItem("akh-data", JSON.stringify({members:m,events:e,payments:p,defaultAmount:amt})); }catch(e){}
+  }
+
+  async function syncToCloud(m,e,p,amt){
+    saveLocal(m,e,p,amt);
+    if(!isSetup) return;
+    setSyncStatus("syncing");
+    var result = await apiCall("syncAll",{ members:m, events:e, payments:p, settings:{defaultAmount:amt} });
+    if(result && result.success){
+      setSyncStatus("synced"); setLastSync(new Date().toLocaleTimeString());
+      setTimeout(function(){ setSyncStatus("idle"); }, 3000);
+    } else { setSyncStatus("error"); }
+  }
+
+  var sectionMembers = members.filter(function(m){ return m.section===activeSection; });
+  var filtered = sectionMembers.filter(function(m){
+    if(!search) return true;
+    var s = search.toLowerCase();
+    return m.name.toLowerCase().includes(s)||m.sonOf.toLowerCase().includes(s)||m.location.toLowerCase().includes(s);
+  });
+  var sectionLeader = sectionMembers.find(function(m){ return m.isLeader; });
+
+  function addOrUpdateMember(data){
+    var nm;
+    if(editingMember){ nm=members.map(function(m){ return m.id===editingMember.id?{...m,...data}:m; }); }
+    else { nm=[...members,{id:uid(),sn:sectionMembers.length+1,section:activeSection,isLeader:false,...data}]; }
+    setMembers(nm); syncToCloud(nm,events,payments,defaultAmount);
+    setShowForm(false); setEditingMember(null);
+  }
+  function deleteMember(id){
+    if(!confirm(t.confirmDelete)) return;
+    var nm=members.filter(function(m){return m.id!==id;}); var np=payments.filter(function(p){return p.memberId!==id;});
+    setMembers(nm); setPayments(np); syncToCloud(nm,events,np,defaultAmount);
+  }
+  function toggleLeader(id){
+    var nm=members.map(function(m){ if(m.section===activeSection) return {...m,isLeader:m.id===id?!m.isLeader:false}; return m; });
+    setMembers(nm); syncToCloud(nm,events,payments,defaultAmount);
+  }
+  function addDeathEvent(data){
+    var evt={id:uid(),...data,date:data.date||new Date().toISOString().split("T")[0],amount:data.amount||defaultAmount};
+    var ne=[...events,evt]; var np=[...payments];
+    members.forEach(function(m){ np.push({id:uid(),memberId:m.id,eventId:evt.id,paid:false,approved:false,amount:evt.amount,paidDate:""}); });
+    setEvents(ne); setPayments(np); syncToCloud(members,ne,np,defaultAmount); setShowEventForm(false);
+  }
+  function togglePayment(pid){
+    var np=payments.map(function(p){ if(p.id===pid){var v=!p.paid; return{...p,paid:v,paidDate:v?new Date().toISOString().split("T")[0]:"",approved:v?p.approved:false};} return p; });
+    setPayments(np); syncToCloud(members,events,np,defaultAmount);
+  }
+  function approvePayment(pid){
+    var np=payments.map(function(p){return p.id===pid?{...p,approved:true}:p;});
+    setPayments(np); syncToCloud(members,events,np,defaultAmount);
+  }
+  function markSectionAllPaid(eid,sid){
+    var sIds=members.filter(function(m){return m.section===sid;}).map(function(m){return m.id;});
+    var np=payments.map(function(p){ if(p.eventId===eid&&sIds.includes(p.memberId)&&!p.paid) return{...p,paid:true,paidDate:new Date().toISOString().split("T")[0]}; return p; });
+    setPayments(np); syncToCloud(members,events,np,defaultAmount);
+  }
+  function getEventStats(eid){
+    var ep=payments.filter(function(p){return p.eventId===eid;});
+    var pc=ep.filter(function(p){return p.paid;}).length;
+    return{total:ep.length,paidCount:pc,totalAmt:ep.reduce(function(s,p){return s+(p.paid?p.amount:0);},0),pendingAmt:ep.reduce(function(s,p){return s+(p.paid?0:p.amount);},0)};
+  }
+  function getSectionStats(sid){
+    var sm=members.filter(function(m){return m.section===sid;});
+    var ids=sm.map(function(m){return m.id;});
+    var sp=payments.filter(function(p){return ids.includes(p.memberId);});
+    var pa=sp.reduce(function(s,p){return s+(p.paid?p.amount:0);},0);
+    var ta=sp.reduce(function(s,p){return s+Number(p.amount);},0);
+    return{members:sm.length,paidAmt:pa,totalAmt:ta,pending:ta-pa};
+  }
+  function getMemberPaymentSummary(mid){
+    var mp=payments.filter(function(p){return p.memberId===mid;});
+    var pc=mp.filter(function(p){return p.paid;}).length;
+    return{total:mp.length,paid:pc,unpaid:mp.length-pc};
+  }
+
+  function openWhatsApp(phone,msg){
+    var num=(phone||"").replace(/[^0-9]/g,"");
+    var url=num?"https://wa.me/"+num+"?text="+encodeURIComponent(msg):"https://wa.me/?text="+encodeURIComponent(msg);
+    window.open(url,"_blank");
+  }
+  function buildAnnouncement(evt){
+    var sec=SECTIONS.find(function(s){return s.id===evt.section;}); var sn=sec?(lang==="ur"?sec.ur:sec.en):"";
+    return lang==="ur"
+      ?"إنا لله وإنا إليه راجعون\n\nعلی خیل مردہ فنڈ — وفات کا اعلان\n\nمرحوم: "+evt.deceasedName+"\nسیکشن: "+sn+"\nتاریخ: "+evt.date+"\nچندہ: "+evt.amount+" AED فی ممبر\n\nبراہ کرم جلد ادا کریں۔ آمین"
+      :"Inna lillahi wa inna ilayhi raji'un\n\nAli Khel Murda Fund — Death Announcement\n\nDeceased: "+evt.deceasedName+"\nSection: "+sn+"\nDate: "+evt.date+"\nContribution: "+evt.amount+" AED per member\n\nPlease pay soon. Ameen.";
+  }
+  function buildReminder(evt,name){
+    return lang==="ur"
+      ?"السلام علیکم "+name+"\n\nیاد دہانی: علی خیل مردہ فنڈ\nمرحوم: "+evt.deceasedName+"\nچندہ: "+evt.amount+" AED\n\nبراہ کرم جلد ادا کریں۔ جزاک اللہ"
+      :"Assalam-o-Alaikum "+name+"\n\nReminder: Ali Khel Murda Fund\nDeceased: "+evt.deceasedName+"\nContribution: "+evt.amount+" AED\n\nPlease pay soon. JazakAllah";
+  }
+  function buildLeaderMsg(evt,sid){
+    var sec=SECTIONS.find(function(s){return s.id===sid;}); var sn=sec?(lang==="ur"?sec.ur:sec.en):"";
+    var sm=members.filter(function(m){return m.section===sid;});
+    var sIds=sm.map(function(m){return m.id;});
+    var sp=payments.filter(function(p){return p.eventId===evt.id&&sIds.includes(p.memberId);});
+    var pL=[],uL=[]; sp.forEach(function(p){var m=sm.find(function(mm){return mm.id===p.memberId;});if(m){if(p.paid)pL.push(m.name);else uL.push(m.name);}});
+    return lang==="ur"
+      ?"علی خیل مردہ فنڈ — "+sn+"\n\nمرحوم: "+evt.deceasedName+"\nادا شدہ ("+pL.length+"): "+(pL.join("، ")||"کوئی نہیں")+"\nغیر ادا شدہ ("+uL.length+"): "+(uL.join("، ")||"کوئی نہیں")+"\n\nکل وصول: "+(pL.length*evt.amount)+" AED\nکل باقی: "+(uL.length*evt.amount)+" AED"
+      :"Ali Khel Murda Fund — "+sn+"\n\nDeceased: "+evt.deceasedName+"\nPaid ("+pL.length+"): "+(pL.join(", ")||"None")+"\nUnpaid ("+uL.length+"): "+(uL.join(", ")||"None")+"\n\nCollected: "+(pL.length*evt.amount)+" AED\nPending: "+(uL.length*evt.amount)+" AED";
+  }
+
+  var S = {
+    app:{fontFamily:isRtl?"'Noto Nastaliq Urdu',serif":"'Inter',sans-serif",direction:isRtl?"rtl":"ltr",background:"linear-gradient(135deg,#0a1628,#0f2035,#0a1628)",minHeight:"100vh",color:"#e2e8f0",maxWidth:900,margin:"0 auto",padding:"0 8px 80px"},
+    header:{textAlign:"center",padding:"20px 12px 14px",borderBottom:"1px solid rgba(74,222,128,0.15)"},
+    langBtn:{position:"absolute",top:14,right:isRtl?"auto":12,left:isRtl?12:"auto",background:"rgba(74,222,128,0.15)",border:"1px solid rgba(74,222,128,0.3)",color:"#4ade80",padding:"6px 14px",borderRadius:8,cursor:"pointer",fontSize:13,fontFamily:"'Noto Nastaliq Urdu',serif"},
+    sTabs:{display:"flex",gap:4,padding:"10px 0",overflowX:"auto"},
+    sT:function(a){return{padding:"7px 12px",borderRadius:10,border:a?"1px solid #4ade80":"1px solid rgba(255,255,255,0.08)",background:a?"rgba(74,222,128,0.15)":"rgba(255,255,255,0.03)",color:a?"#4ade80":"#94a3b8",cursor:"pointer",fontSize:12,fontWeight:a?700:500,whiteSpace:"nowrap"};},
+    nav:{display:"flex",position:"fixed",bottom:0,left:0,right:0,background:"rgba(10,22,40,0.95)",backdropFilter:"blur(12px)",borderTop:"1px solid rgba(74,222,128,0.1)",zIndex:100},
+    nI:function(a){return{flex:1,padding:"10px 4px",textAlign:"center",cursor:"pointer",color:a?"#4ade80":"#64748b",fontSize:11,fontWeight:a?700:400,borderTop:a?"2px solid #4ade80":"2px solid transparent"};},
+    card:{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,padding:16,marginBottom:12},
+    btn:function(v){return{padding:"8px 16px",borderRadius:8,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,fontFamily:"inherit",background:v==="primary"?"#4ade80":v==="danger"?"#ef4444":"rgba(255,255,255,0.08)",color:v==="primary"?"#0a1628":v==="danger"?"#fff":"#94a3b8"};},
+    inp:{width:"100%",padding:"10px 12px",borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#e2e8f0",fontSize:14,fontFamily:"inherit",outline:"none",boxSizing:"border-box",direction:isRtl?"rtl":"ltr"},
+    tbl:{width:"100%",borderCollapse:"collapse",fontSize:13},
+    th:{padding:"10px 8px",textAlign:isRtl?"right":"left",borderBottom:"1px solid rgba(74,222,128,0.15)",color:"#4ade80",fontSize:11,fontWeight:700,textTransform:"uppercase"},
+    td:{padding:"10px 8px",textAlign:isRtl?"right":"left",borderBottom:"1px solid rgba(255,255,255,0.04)"},
+    bdg:function(tp){return{display:"inline-block",padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:tp==="paid"?"rgba(74,222,128,0.15)":tp==="approved"?"rgba(59,130,246,0.15)":"rgba(239,68,68,0.15)",color:tp==="paid"?"#4ade80":tp==="approved"?"#60a5fa":"#f87171"};},
+    lBdg:{display:"inline-block",padding:"2px 8px",borderRadius:12,fontSize:10,fontWeight:700,background:"rgba(251,191,36,0.2)",color:"#fbbf24",marginLeft:isRtl?0:6,marginRight:isRtl?6:0},
+    wa:{display:"inline-flex",alignItems:"center",gap:4,padding:"6px 12px",borderRadius:8,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,background:"#25D366",color:"#fff",fontFamily:"inherit"},
+    syncBar:{textAlign:"center",padding:"6px",fontSize:11,background:syncStatus==="syncing"?"rgba(251,191,36,0.1)":syncStatus==="synced"?"rgba(74,222,128,0.1)":syncStatus==="error"?"rgba(239,68,68,0.1)":"transparent",color:syncStatus==="syncing"?"#fbbf24":syncStatus==="synced"?"#4ade80":syncStatus==="error"?"#f87171":"transparent",transition:"all 0.3s"},
+  };
+
+  function MemberForm(){
+    var [n,sN]=useState(editingMember?editingMember.name:"");
+    var [so,sSo]=useState(editingMember?editingMember.sonOf:"");
+    var [lo,sLo]=useState(editingMember?editingMember.location:"");
+    var [ph,sPh]=useState(editingMember?editingMember.phone||"":"");
+    var [ed,sEd]=useState(editingMember?editingMember.entryDate||"":new Date().toISOString().split("T")[0]);
+    return(<div style={S.card}>
+      <h3 style={{color:"#4ade80",margin:"0 0 14px",fontSize:16}}>{editingMember?t.editMember:t.addMember}</h3>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <input style={S.inp} placeholder={t.name} value={n} onChange={function(e){sN(e.target.value);}}/>
+        <input style={S.inp} placeholder={t.sonOf} value={so} onChange={function(e){sSo(e.target.value);}}/>
+        <input style={S.inp} placeholder={t.location} value={lo} onChange={function(e){sLo(e.target.value);}}/>
+        <input style={S.inp} placeholder={t.phone+" (971501234567)"} value={ph} onChange={function(e){sPh(e.target.value);}}/>
+        <div><label style={{fontSize:12,color:"#94a3b8",display:"block",marginBottom:4}}>{t.dateOfEntry}</label>
+        <input style={S.inp} type="date" value={ed} onChange={function(e){sEd(e.target.value);}}/></div>
+        <div style={{display:"flex",gap:8}}>
+          <button style={S.btn("primary")} onClick={function(){if(n.trim())addOrUpdateMember({name:n.trim(),sonOf:so.trim(),location:lo.trim(),phone:ph.trim(),entryDate:ed});}}>{t.save}</button>
+          <button style={S.btn()} onClick={function(){setShowForm(false);setEditingMember(null);}}>{t.cancel}</button>
+        </div>
+      </div>
+    </div>);
+  }
+
+  function EventForm(){
+    var [dn,sDn]=useState(""); var [ds,sDs]=useState(activeSection);
+    var [dd,sDd]=useState(new Date().toISOString().split("T")[0]); var [am,sAm]=useState(defaultAmount);
+    return(<div style={S.card}>
+      <h3 style={{color:"#4ade80",margin:"0 0 14px",fontSize:16}}>{t.newEvent}</h3>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <input style={S.inp} placeholder={t.deceasedName} value={dn} onChange={function(e){sDn(e.target.value);}}/>
+        <select style={{...S.inp,cursor:"pointer"}} value={ds} onChange={function(e){sDs(e.target.value);}}>
+          {SECTIONS.map(function(s){return <option key={s.id} value={s.id}>{lang==="ur"?s.ur:s.en}</option>;})}
+        </select>
+        <input style={S.inp} type="date" value={dd} onChange={function(e){sDd(e.target.value);}}/>
+        <div><label style={{fontSize:12,color:"#94a3b8"}}>{t.contribution}</label>
+        <input style={S.inp} type="number" value={am} onChange={function(e){sAm(Number(e.target.value));}}/></div>
+        <div style={{display:"flex",gap:8}}>
+          <button style={S.btn("primary")} onClick={function(){if(dn.trim())addDeathEvent({deceasedName:dn.trim(),section:ds,date:dd,amount:am});}}>{t.save}</button>
+          <button style={S.btn()} onClick={function(){setShowEventForm(false);}}>{t.cancel}</button>
+        </div>
+      </div>
+    </div>);
+  }
+
+  function MembersTab(){
+    return(<div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",margin:"10px 0",gap:8}}>
+        <input style={{...S.inp,maxWidth:200}} placeholder={t.search} value={search} onChange={function(e){setSearch(e.target.value);}}/>
+        <button style={S.btn("primary")} onClick={function(){setEditingMember(null);setShowForm(true);}}>+ {t.addMember}</button>
+      </div>
+      {showForm&&<MemberForm/>}
+      {sectionLeader&&<div style={{...S.card,display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"rgba(251,191,36,0.06)",borderColor:"rgba(251,191,36,0.2)"}}>
+        <span style={{fontSize:20}}>👑</span>
+        <span style={{fontSize:13,color:"#fbbf24",fontWeight:600}}>{t.leader}: {sectionLeader.name}</span>
+        {sectionLeader.phone&&<button style={{...S.wa,padding:"4px 10px",fontSize:11,marginLeft:"auto"}} onClick={function(){openWhatsApp(sectionLeader.phone,"");}}>📱 WhatsApp</button>}
+      </div>}
+      {filtered.length===0?<div style={{...S.card,textAlign:"center",color:"#64748b",padding:32}}>{t.noMembers}</div>
+      :<div style={{overflowX:"auto"}}><table style={S.tbl}><thead><tr>
+        <th style={S.th}>{t.sn}</th><th style={S.th}>{t.name}</th><th style={S.th}>{t.sonOf}</th>
+        <th style={S.th}>{t.location}</th><th style={S.th}>{t.phone}</th><th style={S.th}>{t.dateOfEntry}</th>
+        <th style={S.th}>{t.status}</th><th style={S.th}>{t.actions}</th>
+      </tr></thead><tbody>
+        {filtered.map(function(m,i){var ps=getMemberPaymentSummary(m.id);return(
+          <tr key={m.id} style={{background:i%2===0?"transparent":"rgba(255,255,255,0.02)"}}>
+            <td style={S.td}>{i+1}</td>
+            <td style={S.td}>{m.name}{m.isLeader&&<span style={S.lBdg}>👑</span>}</td>
+            <td style={S.td}>{m.sonOf}</td><td style={S.td}>{m.location}</td>
+            <td style={S.td}>{m.phone||"—"}</td><td style={S.td}>{m.entryDate||"—"}</td>
+            <td style={S.td}>{ps.total>0?<span style={S.bdg(ps.unpaid===0?"paid":"unpaid")}>{ps.paid}/{ps.total} {t.paid}</span>:"—"}</td>
+            <td style={{...S.td,whiteSpace:"nowrap"}}>
+              <button style={{...S.btn(),padding:"4px 8px",fontSize:11,marginRight:4}} onClick={function(){setEditingMember(m);setShowForm(true);}}>✏️</button>
+              <button style={{...S.btn("danger"),padding:"4px 8px",fontSize:11,marginRight:4}} onClick={function(){deleteMember(m.id);}}>🗑️</button>
+              <button style={{...S.btn(),padding:"4px 8px",fontSize:11,background:m.isLeader?"rgba(251,191,36,0.2)":"rgba(255,255,255,0.05)",marginRight:4}} onClick={function(){toggleLeader(m.id);}}>{m.isLeader?"👑✕":"👑"}</button>
+              {m.phone&&<button style={{...S.wa,padding:"4px 8px",fontSize:11}} onClick={function(){openWhatsApp(m.phone,"");}}>📱</button>}
+            </td>
+          </tr>);})}
+      </tbody></table></div>}
+    </div>);
+  }
+
+  function EventsTab(){
+    return(<div>
+      <div style={{display:"flex",justifyContent:"flex-end",margin:"10px 0"}}><button style={S.btn("primary")} onClick={function(){setShowEventForm(true);}}>+ {t.newEvent}</button></div>
+      {showEventForm&&<EventForm/>}
+      {events.length===0?<div style={{...S.card,textAlign:"center",color:"#64748b",padding:32}}>{t.noEvents}</div>
+      :events.slice().reverse().map(function(evt){
+        var stats=getEventStats(evt.id); var sec=SECTIONS.find(function(s){return s.id===evt.section;});
+        return(<div key={evt.id} style={S.card}>
+          <div style={{cursor:"pointer"}} onClick={function(){setSelectedEvent(evt);}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div>
+                <div style={{fontSize:16,fontWeight:700,color:"#e2e8f0"}}>{evt.deceasedName}</div>
+                <div style={{fontSize:12,color:"#64748b",marginTop:2}}>{sec?(lang==="ur"?sec.ur:sec.en):""} • {evt.date}</div>
+                <div style={{fontSize:12,color:"#94a3b8",marginTop:4}}>{evt.amount} AED {t.perMember}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:20,fontWeight:800,color:"#4ade80"}}>{stats.totalAmt} AED</div>
+                <div style={{fontSize:11,color:"#64748b"}}>{stats.paidCount}/{stats.total} {t.paid}</div>
+                {stats.pendingAmt>0&&<div style={{fontSize:11,color:"#f87171"}}>{stats.pendingAmt} AED {t.pending}</div>}
+              </div>
+            </div>
+            <div style={{marginTop:10,background:"rgba(255,255,255,0.06)",borderRadius:6,height:6,overflow:"hidden"}}>
+              <div style={{height:"100%",background:"#4ade80",borderRadius:6,width:(stats.total?(stats.paidCount/stats.total)*100:0)+"%"}}/>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap"}}>
+            <button style={S.wa} onClick={function(e){e.stopPropagation();openWhatsApp("",buildAnnouncement(evt));}}>📢 {t.whatsappShare}</button>
+            <button style={{...S.wa,background:"#128C7E"}} onClick={function(e){e.stopPropagation();
+              var uL=[];payments.filter(function(p){return p.eventId===evt.id&&!p.paid;}).forEach(function(p){var m=members.find(function(mm){return mm.id===p.memberId;});if(m)uL.push(m.name);});
+              openWhatsApp("",(lang==="ur"?"غیر ادا شدہ — "+evt.deceasedName+":\n\n"+uL.join("\n")+"\n\nبراہ کرم "+evt.amount+" AED ادا کریں":"Unpaid — "+evt.deceasedName+":\n\n"+uL.join("\n")+"\n\nPlease pay "+evt.amount+" AED"));
+            }}>🔔 {t.whatsappRemind}</button>
+          </div>
+        </div>);
+      })}
+    </div>);
+  }
+
+  function EventDetailModal(){
+    if(!selectedEvent) return null;
+    var evtP=payments.filter(function(p){return p.eventId===selectedEvent.id;});
+    var secP={};SECTIONS.forEach(function(s){secP[s.id]=[];});
+    evtP.forEach(function(p){var m=members.find(function(mm){return mm.id===p.memberId;});if(m&&secP[m.section])secP[m.section].push({...p,member:m});});
+    return(<div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",zIndex:200,overflowY:"auto",padding:12}}>
+      <div style={{maxWidth:850,margin:"20px auto",background:"#0f2035",borderRadius:16,border:"1px solid rgba(74,222,128,0.15)",padding:16}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <h3 style={{color:"#4ade80",margin:0,fontSize:18}}>{selectedEvent.deceasedName} — {selectedEvent.amount} AED</h3>
+          <button style={S.btn()} onClick={function(){setSelectedEvent(null);}}>✕ {t.close}</button>
+        </div>
+        <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+          <button style={S.wa} onClick={function(){openWhatsApp("",buildAnnouncement(selectedEvent));}}>📢 {t.sendToAll}</button>
+        </div>
+        {SECTIONS.map(function(sec){
+          var sp=secP[sec.id];if(sp.length===0) return null;
+          var secL=members.find(function(m){return m.section===sec.id&&m.isLeader;});
+          var unpaid=sp.filter(function(p){return!p.paid;}); var paidC=sp.filter(function(p){return p.paid;});
+          return(<div key={sec.id} style={{marginBottom:18,background:"rgba(255,255,255,0.02)",borderRadius:12,padding:12,border:"1px solid rgba(255,255,255,0.05)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:6}}>
+              <div>
+                <span style={{fontSize:15,fontWeight:700,color:"#fbbf24"}}>{lang==="ur"?sec.ur:sec.en}</span>
+                {secL&&<span style={{fontSize:11,color:"#94a3b8",marginLeft:8}}>👑 {secL.name}</span>}
+                <span style={{fontSize:11,color:"#64748b",marginLeft:8}}>({paidC.length}/{sp.length} {t.paid})</span>
+              </div>
+              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                {unpaid.length>0&&<button style={{...S.btn("primary"),padding:"4px 10px",fontSize:11}} onClick={function(){markSectionAllPaid(selectedEvent.id,sec.id);}}>✓ {t.markAllPaid}</button>}
+                {secL&&secL.phone&&<button style={{...S.wa,padding:"4px 10px",fontSize:11}} onClick={function(){openWhatsApp(secL.phone,buildLeaderMsg(selectedEvent,sec.id));}}>👑 {t.sendToLeader}</button>}
+              </div>
+            </div>
+            <table style={S.tbl}><thead><tr>
+              <th style={S.th}>{t.name}</th><th style={S.th}>{t.sonOf}</th><th style={S.th}>{t.paidAmount}</th>
+              <th style={S.th}>{t.paymentDate}</th><th style={S.th}>{t.status}</th><th style={S.th}>{t.actions}</th>
+            </tr></thead><tbody>
+              {sp.map(function(p){return(
+                <tr key={p.id} style={{background:p.paid?"rgba(74,222,128,0.03)":"rgba(239,68,68,0.03)"}}>
+                  <td style={S.td}>{p.member.name}</td><td style={S.td}>{p.member.sonOf}</td>
+                  <td style={S.td}>{p.paid?p.amount+" AED":"—"}</td><td style={S.td}>{p.paidDate||"—"}</td>
+                  <td style={S.td}>{p.approved?<span style={S.bdg("approved")}>✓ {t.approved}</span>:p.paid?<span style={S.bdg("paid")}>{t.paid}</span>:<span style={S.bdg("unpaid")}>{t.unpaid}</span>}</td>
+                  <td style={{...S.td,whiteSpace:"nowrap"}}>
+                    <button style={{...S.btn(p.paid?"danger":"primary"),padding:"4px 10px",fontSize:11,marginRight:4}} onClick={function(){togglePayment(p.id);}}>{p.paid?t.markUnpaid:t.markPaid}</button>
+                    {p.paid&&!p.approved&&<button style={{...S.btn(),padding:"4px 10px",fontSize:11,background:"rgba(59,130,246,0.2)",color:"#60a5fa",marginRight:4}} onClick={function(){approvePayment(p.id);}}>✓ {t.approve}</button>}
+                    {!p.paid&&p.member.phone&&<button style={{...S.wa,padding:"4px 8px",fontSize:11}} onClick={function(){openWhatsApp(p.member.phone,buildReminder(selectedEvent,p.member.name));}}>📱</button>}
+                  </td>
+                </tr>);})}
+            </tbody></table>
+          </div>);
+        })}
+      </div>
+    </div>);
+  }
+
+  function SummaryTab(){
+    var tm=members.length; var tp=payments.filter(function(p){return p.paid;}).reduce(function(s,p){return s+Number(p.amount);},0);
+    var tpd=payments.filter(function(p){return!p.paid;}).reduce(function(s,p){return s+Number(p.amount);},0);
+    return(<div>
+      <div style={{...S.card,display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
+        <div style={{textAlign:"center",padding:10}}><div style={{fontSize:24,fontWeight:800,color:"#4ade80"}}>{tm}</div><div style={{fontSize:11,color:"#64748b"}}>{t.allMembers}</div></div>
+        <div style={{textAlign:"center",padding:10}}><div style={{fontSize:24,fontWeight:800,color:"#60a5fa"}}>{events.length}</div><div style={{fontSize:11,color:"#64748b"}}>{t.totalEvents}</div></div>
+        <div style={{textAlign:"center",padding:10}}><div style={{fontSize:24,fontWeight:800,color:"#4ade80"}}>{tp}<span style={{fontSize:12}}> AED</span></div><div style={{fontSize:11,color:"#64748b"}}>{t.collected}</div></div>
+        <div style={{textAlign:"center",padding:10}}><div style={{fontSize:24,fontWeight:800,color:"#f87171"}}>{tpd}<span style={{fontSize:12}}> AED</span></div><div style={{fontSize:11,color:"#64748b"}}>{t.pending}</div></div>
+      </div>
+      {SECTIONS.map(function(sec){var st=getSectionStats(sec.id);var ld=members.find(function(m){return m.section===sec.id&&m.isLeader;});
+        return(<div key={sec.id} style={{...S.card,padding:"12px 14px"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div><div style={{fontSize:15,fontWeight:700,color:"#e2e8f0"}}>{lang==="ur"?sec.ur:sec.en}</div><div style={{fontSize:11,color:"#64748b"}}>{st.members} {t.members} {ld?"• 👑 "+ld.name:""}</div></div>
+          <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:700,color:"#4ade80"}}>{st.paidAmt} AED</div>{st.pending>0&&<div style={{fontSize:11,color:"#f87171"}}>{st.pending} AED {t.pending}</div>}</div>
+        </div></div>);})}
+    </div>);
+  }
+
+  function SettingsTab(){
+    var [am,sAm]=useState(defaultAmount);
+    return(<div><div style={S.card}>
+      <h3 style={{color:"#4ade80",margin:"0 0 14px",fontSize:16}}>{t.settings}</h3>
+      <label style={{fontSize:13,color:"#94a3b8",display:"block",marginBottom:6}}>{t.contributionAmount}</label>
+      <input style={{...S.inp,maxWidth:200}} type="number" value={am} onChange={function(e){sAm(Number(e.target.value));}}/>
+      <div style={{marginTop:12}}><button style={S.btn("primary")} onClick={function(){setDefaultAmount(am);syncToCloud(members,events,payments,am);}}>{t.saveSettings}</button></div>
+      <div style={{marginTop:20,padding:12,background:"rgba(255,255,255,0.03)",borderRadius:8,fontSize:12,color:"#64748b"}}>
+        <div>👥 {t.allMembers}: {members.length}</div>
+        <div>📋 {t.deathEvents}: {events.length}</div>
+        <div>💰 {t.contribution}: {defaultAmount} AED {t.perMember}</div>
+        <div style={{marginTop:8,borderTop:"1px solid rgba(255,255,255,0.06)",paddingTop:8}}>
+          <div>☁️ Google Sheets: {isSetup?<span style={{color:"#4ade80"}}>Connected</span>:<span style={{color:"#f87171"}}>Not Set Up</span>}</div>
+          {lastSync&&<div>🔄 {t.lastSync}: {lastSync}</div>}
+          {syncStatus==="error"&&<button style={{...S.btn("primary"),padding:"4px 12px",fontSize:11,marginTop:6}} onClick={function(){syncToCloud(members,events,payments,defaultAmount);}}>{t.retry}</button>}
+        </div>
+      </div>
+    </div></div>);
+  }
+
+  if(!loaded) return null;
+
+  return(<div style={S.app}>
+    <div style={{position:"relative"}}>
+      <div style={S.header}>
+        <h1 style={{fontSize:26,fontWeight:800,color:"#4ade80",margin:0}}>{t.title}</h1>
+        <div style={{fontSize:13,color:"#94a3b8",marginTop:4}}>{t.subtitle}</div>
+      </div>
+      <button style={S.langBtn} onClick={function(){setLang(lang==="en"?"ur":"en");}}>{t.language}</button>
+    </div>
+    {!isSetup&&<div style={{textAlign:"center",padding:"8px",fontSize:12,background:"rgba(239,68,68,0.1)",color:"#f87171",borderRadius:8,margin:"8px 0"}}>{t.setupNeeded}</div>}
+    <div style={S.syncBar}>{syncStatus==="syncing"?"⏳ "+t.syncing:syncStatus==="synced"?"✅ "+t.synced:syncStatus==="error"?"❌ "+t.syncError:""}</div>
+    <div style={S.sTabs}>
+      {SECTIONS.map(function(s){var c=members.filter(function(m){return m.section===s.id;}).length;
+        return <div key={s.id} style={S.sT(activeSection===s.id)} onClick={function(){setActiveSection(s.id);}}>{lang==="ur"?s.ur:s.en} ({c})</div>;})}
+    </div>
+    <div style={{padding:"4px 0 20px"}}>
+      {tab==="members"&&<MembersTab/>}{tab==="events"&&<EventsTab/>}{tab==="summary"&&<SummaryTab/>}{tab==="settings"&&<SettingsTab/>}
+    </div>
+    {selectedEvent&&<EventDetailModal/>}
+    <div style={S.nav}>
+      <div style={S.nI(tab==="members")} onClick={function(){setTab("members");}}><div style={{fontSize:18}}>👥</div>{t.members}</div>
+      <div style={S.nI(tab==="events")} onClick={function(){setTab("events");}}><div style={{fontSize:18}}>📋</div>{t.deathEvents}</div>
+      <div style={S.nI(tab==="summary")} onClick={function(){setTab("summary");}}><div style={{fontSize:18}}>📊</div>{t.summary}</div>
+      <div style={S.nI(tab==="settings")} onClick={function(){setTab("settings");}}><div style={{fontSize:18}}>⚙️</div>{t.settings}</div>
+    </div>
+  </div>);
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
