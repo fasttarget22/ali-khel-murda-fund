@@ -25,6 +25,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script type="text/babel">
 // =============================================
@@ -69,6 +70,8 @@ var T = {
     totalEvents:"Total Events", syncing:"Syncing...", synced:"Synced ✓",
     syncError:"Sync Error!", offline:"Offline Mode", retry:"Retry Sync",
     lastSync:"Last sync", setupNeeded:"⚠️ Setup: Paste your Google Apps Script URL in index.html",
+    importExcel:"Import Excel", exportExcel:"Export Excel", importSuccess:" members imported!", importError:"Error reading file",
+    excelFormat:"Columns: Name, SonOf, Location, Phone, EntryDate",
   },
   ur: {
     title:"علی خیل مردہ فنڈ", subtitle:"کمیونٹی وفات فنڈ",
@@ -95,6 +98,8 @@ var T = {
     totalEvents:"کل وفات", syncing:"مطابقت...", synced:"مطابقت ✓",
     syncError:"مطابقت خرابی!", offline:"آف لائن موڈ", retry:"دوبارہ کوشش",
     lastSync:"آخری مطابقت", setupNeeded:"⚠️ سیٹ اپ: اپنا Google Apps Script URL ڈالیں",
+    importExcel:"ایکسل درآمد", exportExcel:"ایکسل برآمد", importSuccess:" ممبر درآمد ہوئے!", importError:"فائل پڑھنے میں خرابی",
+    excelFormat:"کالم: Name, SonOf, Location, Phone, EntryDate",
   },
 };
 
@@ -298,6 +303,75 @@ function App(){
     syncBar:{textAlign:"center",padding:"6px",fontSize:11,background:syncStatus==="syncing"?"rgba(251,191,36,0.1)":syncStatus==="synced"?"rgba(74,222,128,0.1)":syncStatus==="error"?"rgba(239,68,68,0.1)":"transparent",color:syncStatus==="syncing"?"#fbbf24":syncStatus==="synced"?"#4ade80":syncStatus==="error"?"#f87171":"transparent",transition:"all 0.3s"},
   };
 
+  // Excel Import/Export
+  function handleImportExcel(e){
+    var file=e.target.files[0]; if(!file) return;
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        var data=new Uint8Array(ev.target.result);
+        var wb=XLSX.read(data,{type:"array"});
+        var ws=wb.Sheets[wb.SheetNames[0]];
+        var rows=XLSX.utils.sheet_to_json(ws,{defval:""});
+        var newMembers=[...members];
+        var count=0;
+        var existingInSection=newMembers.filter(function(m){return m.section===activeSection;}).length;
+        rows.forEach(function(row){
+          var name=row["Name"]||row["name"]||row["نام"]||"";
+          var sonOf=row["SonOf"]||row["S/o"]||row["sonOf"]||row["Son of"]||row["ولد"]||"";
+          var location=row["Location"]||row["location"]||row["Dera"]||row["مقام"]||row["ڈیرہ"]||"";
+          var phone=row["Phone"]||row["phone"]||row["فون"]||row["Mobile"]||"";
+          var entryDate=row["EntryDate"]||row["Entry Date"]||row["Date"]||row["تاریخ"]||"";
+          if(name.toString().trim()){
+            existingInSection++;
+            newMembers.push({id:uid(),sn:existingInSection,name:name.toString().trim(),sonOf:sonOf.toString().trim(),location:location.toString().trim(),phone:phone.toString().trim(),entryDate:entryDate.toString().trim(),section:activeSection,isLeader:false});
+            count++;
+          }
+        });
+        if(count>0){
+          setMembers(newMembers);
+          syncToCloud(newMembers,events,payments,defaultAmount);
+          alert(count+t.importSuccess);
+        }
+      }catch(err){alert(t.importError+": "+err.message);}
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value="";
+  }
+
+  function handleExportExcel(){
+    var secName=SECTIONS.find(function(s){return s.id===activeSection;});
+    var exportData=sectionMembers.map(function(m,i){
+      var ps=getMemberPaymentSummary(m.id);
+      return{"S/N":i+1,"Name":m.name,"S/o":m.sonOf,"Location":m.location,"Phone":m.phone||"","Entry Date":m.entryDate||"","Leader":m.isLeader?"Yes":"No","Paid Events":ps.paid,"Total Events":ps.total};
+    });
+    var ws=XLSX.utils.json_to_sheet(exportData);
+    var wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,secName?(lang==="ur"?secName.ur:secName.en):"Members");
+    XLSX.writeFile(wb,"AliKhel_"+(secName?secName.en:"Members")+".xlsx");
+  }
+
+  function handleExportAll(){
+    var wb=XLSX.utils.book_new();
+    SECTIONS.forEach(function(sec){
+      var sm=members.filter(function(m){return m.section===sec.id;});
+      var data=sm.map(function(m,i){
+        var ps=getMemberPaymentSummary(m.id);
+        return{"S/N":i+1,"Name":m.name,"S/o":m.sonOf,"Location":m.location,"Phone":m.phone||"","Entry Date":m.entryDate||"","Leader":m.isLeader?"Yes":"No","Paid":ps.paid,"Total":ps.total};
+      });
+      var ws=XLSX.utils.json_to_sheet(data);
+      XLSX.utils.book_append_sheet(wb,ws,sec.en);
+    });
+    var evtData=events.map(function(evt){
+      var sec=SECTIONS.find(function(s){return s.id===evt.section;});
+      var stats=getEventStats(evt.id);
+      return{"Deceased":evt.deceasedName,"Section":sec?sec.en:"","Date":evt.date,"Amount AED":evt.amount,"Paid":stats.paidCount,"Total":stats.total,"Collected AED":stats.totalAmt,"Pending AED":stats.pendingAmt};
+    });
+    var ws2=XLSX.utils.json_to_sheet(evtData);
+    XLSX.utils.book_append_sheet(wb,ws2,"Death Events");
+    XLSX.writeFile(wb,"AliKhel_Murda_Fund_Complete.xlsx");
+  }
+
   function MemberForm(){
     var [n,sN]=useState(editingMember?editingMember.name:"");
     var [so,sSo]=useState(editingMember?editingMember.sonOf:"");
@@ -353,10 +427,17 @@ function App(){
   }
 
   function MembersTab(){
+    var fileRef=React.useRef(null);
     return(<div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",margin:"10px 0",gap:8}}>
         <input style={{...S.inp,maxWidth:200}} placeholder={t.search} value={search} onChange={function(e){setSearch(e.target.value);}}/>
         <button style={S.btn("primary")} onClick={function(){setEditingMember(null);setShowForm(true);}}>+ {t.addMember}</button>
+      </div>
+      <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
+        <input type="file" accept=".xlsx,.xls,.csv" ref={fileRef} style={{display:"none"}} onChange={handleImportExcel}/>
+        <button style={{...S.btn(),padding:"6px 12px",fontSize:11,background:"rgba(59,130,246,0.15)",color:"#60a5fa"}} onClick={function(){fileRef.current.click();}}>📥 {t.importExcel}</button>
+        <button style={{...S.btn(),padding:"6px 12px",fontSize:11,background:"rgba(74,222,128,0.1)",color:"#4ade80"}} onClick={handleExportExcel}>📤 {t.exportExcel}</button>
+        <span style={{fontSize:10,color:"#64748b",alignSelf:"center"}}>{t.excelFormat}</span>
       </div>
       {showForm&&<MemberForm/>}
       {sectionLeader&&<div style={{...S.card,display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"rgba(251,191,36,0.06)",borderColor:"rgba(251,191,36,0.2)"}}>
@@ -548,6 +629,9 @@ function App(){
           <div>☁️ Google Sheets: {isSetup?<span style={{color:"#4ade80"}}>Connected</span>:<span style={{color:"#f87171"}}>Not Set Up</span>}</div>
           {lastSync&&<div>🔄 {t.lastSync}: {lastSync}</div>}
           {syncStatus==="error"&&<button style={{...S.btn("primary"),padding:"4px 12px",fontSize:11,marginTop:6}} onClick={function(){syncToCloud(members,events,payments,defaultAmount);}}>{t.retry}</button>}
+        </div>
+        <div style={{marginTop:10,borderTop:"1px solid rgba(255,255,255,0.06)",paddingTop:10}}>
+          <button style={{...S.btn(),padding:"8px 16px",fontSize:12,background:"rgba(74,222,128,0.1)",color:"#4ade80"}} onClick={handleExportAll}>📤 {lang==="ur"?"تمام ڈیٹا ایکسل میں برآمد":"Export All Data to Excel"}</button>
         </div>
       </div>
     </div></div>);
