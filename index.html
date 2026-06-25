@@ -236,6 +236,16 @@ function App(){
     members.forEach(function(m){ np.push({id:uid(),memberId:m.id,eventId:evt.id,paid:false,approved:false,amount:evt.amount,paidDate:""}); });
     setEvents(ne); setPayments(np); syncToCloud(members,ne,np,defaultAmount); setShowEventForm(false);
   }
+  function deleteEvent(eventId){
+    if(!confirm(lang==="ur"?"کیا آپ یہ وفات اور تمام ادائیگیاں حذف کرنا چاہتے ہیں؟":"Delete this event and all its payments?")) return;
+    var ne=events.filter(function(e){return e.id!==eventId;});
+    var np=payments.filter(function(p){return p.eventId!==eventId;});
+    setEvents(ne); setPayments(np); syncToCloud(members,ne,np,defaultAmount);
+    // Also clean up handover and proof
+    var newH={...handovers}; delete newH[eventId];
+    setHandovers(newH);
+    try{localStorage.setItem("akh-handovers",JSON.stringify(newH));localStorage.removeItem("akh-proof-"+eventId);}catch(e){}
+  }
   function togglePayment(pid){
     var np=payments.map(function(p){ if(p.id===pid){var v=!p.paid; return{...p,paid:v,paidDate:v?new Date().toISOString().split("T")[0]:"",approved:v?p.approved:false};} return p; });
     setPayments(np); syncToCloud(members,events,np,defaultAmount);
@@ -508,7 +518,7 @@ function App(){
             <td style={S.td}>{i+1}</td>
             <td style={S.td}>{m.name}{m.isLeader&&<span style={S.lBdg}>👑</span>}</td>
             <td style={S.td}>{m.sonOf}</td><td style={S.td}>{m.location}</td>
-            <td style={S.td}>{m.phone||"—"}</td><td style={S.td}>{m.entryDate||"—"}</td>
+            <td style={S.td}>{m.phone||"—"}</td><td style={S.td}>{m.entryDate?String(m.entryDate).split("T")[0]:"—"}</td>
             <td style={S.td}>{ps.total>0?<span style={S.bdg(ps.unpaid===0?"paid":"unpaid")}>{ps.paid}/{ps.total} {t.paid}</span>:"—"}</td>
             <td style={{...S.td,whiteSpace:"nowrap"}}>
               <button style={{...S.btn(),padding:"4px 8px",fontSize:11,marginRight:4}} onClick={function(){setEditingMember(m);setShowForm(true);}}>✏️</button>
@@ -557,6 +567,7 @@ function App(){
               var uL=[];payments.filter(function(p){return p.eventId===evt.id&&!p.paid;}).forEach(function(p){var m=members.find(function(mm){return mm.id===p.memberId;});if(m)uL.push(m.name);});
               openWhatsApp("",(lang==="ur"?"غیر ادا شدہ — "+evt.deceasedName+":\n\n"+uL.join("\n")+"\n\nبراہ کرم "+evt.amount+" AED ادا کریں":"Unpaid — "+evt.deceasedName+":\n\n"+uL.join("\n")+"\n\nPlease pay "+evt.amount+" AED"));
             }}>🔔 {t.whatsappRemind}</button>
+            <button style={{...S.btn("danger"),padding:"6px 12px",fontSize:11}} onClick={function(e){e.stopPropagation();deleteEvent(evt.id);}}>🗑️ {lang==="ur"?"حذف":"Delete Event"}</button>
           </div>
           {/* Unpaid Members Quick List */}
           {isExpanded&&(function(){
@@ -759,6 +770,15 @@ function App(){
         </div>
         <div style={{marginTop:10,borderTop:"1px solid rgba(255,255,255,0.06)",paddingTop:10}}>
           <button style={{...S.btn(),padding:"8px 16px",fontSize:12,background:"rgba(74,222,128,0.1)",color:"#4ade80"}} onClick={handleExportAll}>📤 {lang==="ur"?"تمام ڈیٹا ایکسل میں برآمد":"Export All Data to Excel"}</button>
+        </div>
+        <div style={{marginTop:10,borderTop:"1px solid rgba(255,255,255,0.06)",paddingTop:10}}>
+          <button style={{...S.btn("danger"),padding:"8px 16px",fontSize:12}} onClick={function(){
+            if(!confirm(lang==="ur"?"یتیم ادائیگیاں صاف کریں؟ (بغیر وفات کے ادائیگیاں)":"Clean orphaned payments? (payments with no event)")) return;
+            var evIds=events.map(function(e){return e.id;});
+            var np=payments.filter(function(p){return evIds.includes(p.eventId);});
+            setPayments(np); syncToCloud(members,events,np,defaultAmount);
+            alert((payments.length-np.length)+(lang==="ur"?" یتیم ریکارڈز حذف کیے گئے":" orphaned records removed"));
+          }}>🧹 {lang==="ur"?"یتیم ادائیگیاں صاف کریں":"Clean Orphaned Payments"}</button>
         </div>
       </div>
     </div></div>);
