@@ -52,6 +52,7 @@ var lb=document.createElement("button"); lb.innerHTML="🔒 Lock"; lb.style.cssT
 </script>
 
 <div id="splash"><div class="spinner"></div><h1>🕌 Ali Khel Murda Fund</h1><p>Loading...</p></div>
+<button onclick="sessionStorage.removeItem('akh-authed');location.reload();" style="position:fixed;bottom:70px;right:10px;z-index:9998;background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;">🔒 Lock</button>
 <div id="root"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
