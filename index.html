@@ -72,6 +72,12 @@ var T = {
     lastSync:"Last sync", setupNeeded:"⚠️ Setup: Paste your Google Apps Script URL in index.html",
     importExcel:"Import Excel", exportExcel:"Export Excel", importSuccess:" members imported!", importError:"Error reading file",
     excelFormat:"Columns: Name, SonOf, Location, Phone, EntryDate",
+    handover:"Fund Handover", recipientName:"Recipient Name", relationship:"Relationship",
+    handoverDate:"Handover Date", handedBy:"Handed By", handoverAmount:"Amount Handed Over",
+    uploadProof:"Upload Proof Photo", proofUploaded:"Proof Uploaded ✓", saveHandover:"Save Handover",
+    son:"Son", widow:"Widow", daughter:"Daughter", brother:"Brother", other:"Other",
+    fundHandedOver:"Fund Handed Over", viewProof:"View Proof", notHandedYet:"Not handed over yet",
+    addHandover:"Add Handover Record",
   },
   ur: {
     title:"علی خیل مردہ فنڈ", subtitle:"کمیونٹی وفات فنڈ",
@@ -100,6 +106,12 @@ var T = {
     lastSync:"آخری مطابقت", setupNeeded:"⚠️ سیٹ اپ: اپنا Google Apps Script URL ڈالیں",
     importExcel:"ایکسل درآمد", exportExcel:"ایکسل برآمد", importSuccess:" ممبر درآمد ہوئے!", importError:"فائل پڑھنے میں خرابی",
     excelFormat:"کالم: Name, SonOf, Location, Phone, EntryDate",
+    handover:"فنڈ حوالگی", recipientName:"وصول کنندہ کا نام", relationship:"رشتہ",
+    handoverDate:"حوالگی تاریخ", handedBy:"حوالے کرنے والا", handoverAmount:"حوالے کی رقم",
+    uploadProof:"ثبوت تصویر اپلوڈ", proofUploaded:"ثبوت اپلوڈ ✓", saveHandover:"حوالگی محفوظ کریں",
+    son:"بیٹا", widow:"بیوہ", daughter:"بیٹی", brother:"بھائی", other:"دیگر",
+    fundHandedOver:"فنڈ حوالے کیا گیا", viewProof:"ثبوت دیکھیں", notHandedYet:"ابھی حوالے نہیں کیا",
+    addHandover:"حوالگی ریکارڈ شامل کریں",
   },
 };
 
@@ -303,6 +315,46 @@ function App(){
     syncBar:{textAlign:"center",padding:"6px",fontSize:11,background:syncStatus==="syncing"?"rgba(251,191,36,0.1)":syncStatus==="synced"?"rgba(74,222,128,0.1)":syncStatus==="error"?"rgba(239,68,68,0.1)":"transparent",color:syncStatus==="syncing"?"#fbbf24":syncStatus==="synced"?"#4ade80":syncStatus==="error"?"#f87171":"transparent",transition:"all 0.3s"},
   };
 
+  // Image compression
+  function compressImage(file,maxW,quality,cb){
+    var reader=new FileReader();
+    reader.onload=function(e){
+      var img=new Image();
+      img.onload=function(){
+        var c=document.createElement("canvas");
+        var ratio=Math.min(maxW/img.width,1);
+        c.width=img.width*ratio; c.height=img.height*ratio;
+        c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+        cb(c.toDataURL("image/jpeg",quality));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // Handover functions (stored locally — no script changes needed)
+  var [handovers, setHandovers] = useState({});
+  
+  useEffect(function(){
+    try{var h=localStorage.getItem("akh-handovers");if(h)setHandovers(JSON.parse(h));}catch(e){}
+  },[]);
+
+  function saveHandover(eventId,handoverData){
+    var newH={...handovers};
+    newH[eventId]={recipientName:handoverData.recipientName,relationship:handoverData.relationship,handoverDate:handoverData.handoverDate,handedBy:handoverData.handedBy,handoverAmount:handoverData.handoverAmount};
+    if(handoverData.proofImage){
+      try{localStorage.setItem("akh-proof-"+eventId,handoverData.proofImage);}catch(e){}
+    }
+    setHandovers(newH);
+    try{localStorage.setItem("akh-handovers",JSON.stringify(newH));}catch(e){}
+  }
+
+  function getHandover(eventId){ return handovers[eventId]||null; }
+
+  function getProofImage(eventId){
+    try{return localStorage.getItem("akh-proof-"+eventId);}catch(e){return null;}
+  }
+
   // Excel Import/Export
   function handleImportExcel(e){
     var file=e.target.files[0]; if(!file) return;
@@ -500,12 +552,38 @@ function App(){
           </div>
           {/* WhatsApp buttons */}
           <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
-            <button style={S.wa} onClick={function(e){e.stopPropagation();openWhatsApp("",buildAnnouncement(evt));}}>📢 {t.whatsappShare}</button>
+            <button style={S.wa} onClick={function(e){e.stopPropagation();openWhatsApp("",buildAnnouncement(evt));}}>📢 {lang==="ur"?"وفات کا اعلان":"Death Announcement"}</button>
             <button style={{...S.wa,background:"#128C7E"}} onClick={function(e){e.stopPropagation();
               var uL=[];payments.filter(function(p){return p.eventId===evt.id&&!p.paid;}).forEach(function(p){var m=members.find(function(mm){return mm.id===p.memberId;});if(m)uL.push(m.name);});
               openWhatsApp("",(lang==="ur"?"غیر ادا شدہ — "+evt.deceasedName+":\n\n"+uL.join("\n")+"\n\nبراہ کرم "+evt.amount+" AED ادا کریں":"Unpaid — "+evt.deceasedName+":\n\n"+uL.join("\n")+"\n\nPlease pay "+evt.amount+" AED"));
             }}>🔔 {t.whatsappRemind}</button>
           </div>
+          {/* Unpaid Members Quick List */}
+          {isExpanded&&(function(){
+            var unpaidList=payments.filter(function(p){return p.eventId===evt.id&&!p.paid;}).map(function(p){var m=members.find(function(mm){return mm.id===p.memberId;});return m?{...p,member:m}:null;}).filter(Boolean);
+            return unpaidList.length>0?<div style={{marginTop:10,background:"rgba(239,68,68,0.05)",border:"1px solid rgba(239,68,68,0.15)",borderRadius:10,padding:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <span style={{fontSize:13,fontWeight:700,color:"#f87171"}}>⚠️ {lang==="ur"?"غیر ادا شدہ ممبران":"Unpaid Members"} ({unpaidList.length})</span>
+                <button style={{...S.wa,padding:"4px 10px",fontSize:11}} onClick={function(e){e.stopPropagation();
+                  unpaidList.forEach(function(p,i){
+                    if(p.member.phone){setTimeout(function(){openWhatsApp(p.member.phone,buildReminder(evt,p.member.name));},i*1500);}
+                  });
+                }}>📱 {lang==="ur"?"سب کو واٹس ایپ":"WhatsApp All"}</button>
+              </div>
+              {unpaidList.map(function(p){
+                return(<div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+                  <div>
+                    <span style={{fontSize:13,color:"#e2e8f0"}}>{p.member.name}</span>
+                    <span style={{fontSize:11,color:"#64748b",marginLeft:6}}>{p.member.phone||""}</span>
+                  </div>
+                  <div style={{display:"flex",gap:4}}>
+                    <button style={{...S.btn("primary"),padding:"3px 8px",fontSize:10}} onClick={function(e){e.stopPropagation();togglePayment(p.id);}}>✓ {t.markPaid}</button>
+                    {p.member.phone&&<button style={{...S.wa,padding:"3px 8px",fontSize:10}} onClick={function(e){e.stopPropagation();openWhatsApp(p.member.phone,buildReminder(evt,p.member.name));}}>📱</button>}
+                  </div>
+                </div>);
+              })}
+            </div>:null;
+          })()}
           {/* Inline Payment List */}
           {isExpanded&&<div style={{marginTop:12}}>
             {SECTIONS.map(function(sec2){
@@ -539,8 +617,57 @@ function App(){
               </div>);
             })}
           </div>}
+          {/* Handover Section */}
+          {isExpanded&&<div style={{marginTop:12,background:"rgba(251,191,36,0.05)",border:"1px solid rgba(251,191,36,0.15)",borderRadius:10,padding:12}}>
+            <h4 style={{color:"#fbbf24",fontSize:14,marginBottom:8}}>🤝 {t.handover}</h4>
+            {getHandover(evt.id)?<div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:12,fontSize:13,color:"#e2e8f0"}}>
+                <div><span style={{color:"#94a3b8"}}>{t.recipientName}:</span> <strong>{getHandover(evt.id).recipientName}</strong></div>
+                <div><span style={{color:"#94a3b8"}}>{t.relationship}:</span> {getHandover(evt.id).relationship}</div>
+                <div><span style={{color:"#94a3b8"}}>{t.handoverDate}:</span> {getHandover(evt.id).handoverDate}</div>
+                <div><span style={{color:"#94a3b8"}}>{t.handedBy}:</span> {getHandover(evt.id).handedBy}</div>
+                <div><span style={{color:"#94a3b8"}}>{t.handoverAmount}:</span> <strong style={{color:"#4ade80"}}>{getHandover(evt.id).handoverAmount} AED</strong></div>
+              </div>
+              {getProofImage(evt.id)&&<div style={{marginTop:8}}><img src={getProofImage(evt.id)} style={{maxWidth:"100%",maxHeight:300,borderRadius:8,border:"1px solid rgba(255,255,255,0.1)"}} onClick={function(){window.open(getProofImage(evt.id),"_blank");}}/><div style={{fontSize:10,color:"#64748b",marginTop:4}}>📸 {t.viewProof}</div></div>}
+            </div>
+            :<HandoverForm evt={evt}/>}
+          </div>}
         </div>);
       })}
+    </div>);
+  }
+
+  function HandoverForm({evt}){
+    var [rn,sRn]=useState(""); var [rel,sRel]=useState(""); var [hd,sHd]=useState(new Date().toISOString().split("T")[0]);
+    var [hb,sHb]=useState(""); var [ha,sHa]=useState(getEventStats(evt.id).totalAmt); var [img,sImg]=useState(null);
+    return(<div style={{display:"flex",flexDirection:"column",gap:8}}>
+      <div style={{fontSize:12,color:"#94a3b8"}}>{t.notHandedYet}</div>
+      <input style={S.inp} placeholder={t.recipientName} value={rn} onChange={function(e){sRn(e.target.value);}}/>
+      <select style={{...S.inp,cursor:"pointer"}} value={rel} onChange={function(e){sRel(e.target.value);}}>
+        <option value="">{t.relationship}</option>
+        <option value={t.son}>{t.son}</option>
+        <option value={t.widow}>{t.widow}</option>
+        <option value={t.daughter}>{t.daughter}</option>
+        <option value={t.brother}>{t.brother}</option>
+        <option value={t.other}>{t.other}</option>
+      </select>
+      <input style={S.inp} placeholder={t.handedBy} value={hb} onChange={function(e){sHb(e.target.value);}}/>
+      <input style={S.inp} type="date" value={hd} onChange={function(e){sHd(e.target.value);}}/>
+      <div><label style={{fontSize:12,color:"#94a3b8"}}>{t.handoverAmount} (AED)</label>
+      <input style={S.inp} type="number" value={ha} onChange={function(e){sHa(Number(e.target.value));}}/></div>
+      <div>
+        <label style={{fontSize:12,color:"#94a3b8",display:"block",marginBottom:4}}>📸 {t.uploadProof}</label>
+        <input type="file" accept="image/*" style={{fontSize:12,color:"#94a3b8"}} onChange={function(e){
+          var f=e.target.files[0]; if(!f) return;
+          compressImage(f,500,0.6,function(dataUrl){sImg(dataUrl);});
+        }}/>
+        {img&&<img src={img} style={{maxWidth:120,maxHeight:80,borderRadius:6,marginTop:6,border:"1px solid rgba(255,255,255,0.1)"}}/>}
+      </div>
+      <button style={{...S.btn("primary"),marginTop:4}} onClick={function(e){
+        e.stopPropagation();
+        if(!rn.trim()||!rel){alert(lang==="ur"?"نام اور رشتہ ضروری ہے":"Name and relationship required"); return;}
+        saveHandover(evt.id,{recipientName:rn.trim(),relationship:rel,handoverDate:hd,handedBy:hb.trim(),handoverAmount:ha,proofImage:img});
+      }}>🤝 {t.saveHandover}</button>
     </div>);
   }
 
