@@ -457,13 +457,13 @@ function App(){
       <h3 style={{color:"#4ade80",margin:"0 0 14px",fontSize:16}}>{t.newEvent}</h3>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         <div><label style={{fontSize:12,color:"#94a3b8",display:"block",marginBottom:4}}>{lang==="ur"?"سیکشن":"Section"}</label>
-        <select style={{...S.inp,cursor:"pointer"}} value={ds} onChange={function(e){sDs(e.target.value);setSelMemberId("");}}>
-          {SECTIONS.map(function(s){return <option key={s.id} value={s.id}>{lang==="ur"?s.ur:s.en}</option>;})}
+        <select style={{...S.inp,cursor:"pointer",color:"#fff",background:"#1a2a40"}} value={ds} onChange={function(e){sDs(e.target.value);setSelMemberId("");}}>
+          {SECTIONS.map(function(s){return <option key={s.id} value={s.id} style={{color:"#000",background:"#fff"}}>{lang==="ur"?s.ur:s.en}</option>;})}
         </select></div>
         <div><label style={{fontSize:12,color:"#94a3b8",display:"block",marginBottom:4}}>{t.deceasedName}</label>
-        <select style={{...S.inp,cursor:"pointer"}} value={selMemberId} onChange={function(e){setSelMemberId(e.target.value);}}>
-          <option value="">{lang==="ur"?"— ممبر منتخب کریں —":"— Select Member —"}</option>
-          {secMems.map(function(m){return <option key={m.id} value={m.id}>{m.name} — {t.sonOf} {m.sonOf} — {m.location}</option>;})}
+        <select style={{...S.inp,cursor:"pointer",color:"#fff",background:"#1a2a40"}} value={selMemberId} onChange={function(e){setSelMemberId(e.target.value);}}>
+          <option value="" style={{color:"#000",background:"#fff"}}>{lang==="ur"?"— ممبر منتخب کریں —":"— Select Member —"}</option>
+          {secMems.map(function(m){return <option key={m.id} value={m.id} style={{color:"#000",background:"#fff"}}>{m.name} / {m.sonOf} / {m.location}</option>;})}
         </select>
         {secMems.length===0&&<div style={{fontSize:11,color:"#f87171",marginTop:4}}>{lang==="ur"?"اس سیکشن میں کوئی ممبر نہیں۔ پہلے ممبر شامل کریں۔":"No members in this section. Add members first."}</div>}
         </div>
