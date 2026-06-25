@@ -48,6 +48,7 @@ document.getElementById("pin-input").addEventListener("keydown",function(e){if(e
 if(sessionStorage.getItem("akh-authed")==="yes"){
   document.getElementById("login-screen").style.display="none";
 }
+var lb=document.createElement("button"); lb.innerHTML="🔒 Lock"; lb.style.cssText="position:fixed;bottom:70px;right:10px;z-index:9998;background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;"; lb.onclick=function(){sessionStorage.removeItem("akh-authed");document.getElementById("login-screen").style.display="flex";document.getElementById("pin-input").value="";}; document.body.appendChild(lb);
 </script>
 
 <div id="splash"><div class="spinner"></div><h1>🕌 Ali Khel Murda Fund</h1><p>Loading...</p></div>
